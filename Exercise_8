@@ -1,0 +1,146 @@
+Java Code: (output down below) 
+
+import java.sql.*;  // imports ALL the sql stuff we need (Connection, ResultSet, etc) - easier than importing each one
+import java.util.Scanner;  // need this to read what the user types
+
+public class DisplayCountries {
+    
+    // these are like settings at the top so we don't have to hunt for them later if they change
+    static final String DB_URL      = "jdbc:mariadb://localhost:3306/nation";  // address of the database - nation is the database name
+    static final String DB_PASSWORD = "password123";
+    static final String DB_USER     = "root";  // default mariadb username is root
+
+    public static void main(String[] args) {
+
+        Scanner scanner = new Scanner(System.in);  // scanner reads keyboard input
+
+        // ask the user what language they want to search for
+        System.out.print("Enter a language name: ");
+        String language = scanner.nextLine().trim();  // .trim() removes accidental spaces before/after - saves you debugging headaches
+        scanner.close();  // close scanner when done with it (good habit)
+
+        // ok so this is the actual SQL query - the ? is a placeholder for the language the user typed
+        // we use ? instead of gluing the string together because that prevents SQL injection (bad people breaking your db)
+        // this time we need 3 tables: countries, country_languages, and languages
+        String sql = """
+                SELECT co.name AS Country, l.language, cl.official
+                FROM countries co
+                JOIN country_languages cl ON co.country_id = cl.country_id
+                JOIN languages l ON cl.language_id = l.language_id
+                WHERE l.language = ?
+                ORDER BY cl.official DESC, co.name ASC
+                """;
+        // ORDER BY official DESC means official languages show up first (1 before 0)
+        // then sorted A-Z by country name within that
+
+        // try-with-resources - automatically closes connection when done even if something crashes (very important!!)
+        try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);  // step 1: actually connect to the database
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {  // step 2: prep our sql query
+
+            pstmt.setString(1, language);  // replace the ? (position 1) with whatever language the user typed
+
+            try (ResultSet rs = pstmt.executeQuery()) {  // step 3: run the query, results go into ResultSet (like a table of results)
+
+                // print a nice header so the output doesn't look like garbage
+                System.out.println("\nCountries where \"" + language + "\" is spoken:");
+                System.out.printf("%-45s %-20s %s%n", "Country", "Language", "Official?");  // %-45s = left align in 45 char wide column
+                System.out.println("-".repeat(75));  // just a line of dashes for looks
+
+                int count = 0;  // gonna count how many results we get
+                
+                while (rs.next()) {  // rs.next() moves to next row - returns false when no more rows (so loop stops)
+                    String country    = rs.getString("Country");   // grab the Country column from current row
+                    String lang       = rs.getString("language");  // grab the Language column
+                    String isOfficial = rs.getString("official").equals("1") ? "Yes" : "No";  // database stores 1 or 0, we show Yes or No
+                    
+                    System.out.printf("%-45s %-20s %s%n", country, lang, isOfficial);  // print the row formatted nicely
+                    count++;  // one more result found
+                }
+
+                // handle the case where nobody speaks that language (or we spelled it wrong lol)
+                if (count == 0) {
+                    System.out.println("No countries found for language: " + language);
+                } else {
+                    System.out.println("\nTotal countries found: " + count);  // summary at the end
+                }
+            }
+
+        } catch (SQLException e) {  // if ANYTHING goes wrong with the database this catches it
+            System.err.println("Database error: " + e.getMessage());  // print the error message
+            e.printStackTrace();  // print the full error trace - helpful for debugging
+        }
+        // connection auto-closes here because of try-with-resources!! don't need conn.close()
+    }
+}
+
+// OUTPUT: 
+
+Countries where "English" is spoken:
+Country                                       Language             Official?
+---------------------------------------------------------------------------
+American Samoa                                English              Yes
+Anguilla                                      English              Yes
+Antigua and Barbuda                           English              Yes
+Australia                                     English              Yes
+Barbados                                      English              Yes
+Belize                                        English              Yes
+Bermuda                                       English              Yes
+Canada                                        English              Yes
+Cayman Islands                                English              Yes
+Christmas Island                              English              Yes
+Cocos (Keeling) Islands                       English              Yes
+Falkland Islands                              English              Yes
+Gibraltar                                     English              Yes
+Guam                                          English              Yes
+Hong Kong                                     English              Yes
+Ireland                                       English              Yes
+Lesotho                                       English              Yes
+Malta                                         English              Yes
+Marshall Islands                              English              Yes
+Montserrat                                    English              Yes
+Nauru                                         English              Yes
+New Zealand                                   English              Yes
+Niue                                          English              Yes
+Norfolk Island                                English              Yes
+Northern Mariana Islands                      English              Yes
+Palau                                         English              Yes
+Saint Helena                                  English              Yes
+Saint Kitts and Nevis                         English              Yes
+Saint Lucia                                   English              Yes
+Saint Vincent and the Grenadines              English              Yes
+Samoa                                         English              Yes
+Seychelles                                    English              Yes
+South Africa                                  English              Yes
+Tokelau                                       English              Yes
+Tonga                                         English              Yes
+Turks and Caicos Islands                      English              Yes
+Tuvalu                                        English              Yes
+United Kingdom                                English              Yes
+United States                                 English              Yes
+United States Minor Outlying Islands          English              Yes
+Vanuatu                                       English              Yes
+Virgin Islands, British                       English              Yes
+Virgin Islands, U.S.                          English              Yes
+Zimbabwe                                      English              Yes
+Aruba                                         English              No
+Bahrain                                       English              No
+Brunei                                        English              No
+Cook Islands                                  English              No
+Denmark                                       English              No
+Iceland                                       English              No
+Japan                                         English              No
+Kuwait                                        English              No
+Macao                                         English              No
+Malaysia                                      English              No
+Maldives                                      English              No
+Monaco                                        English              No
+Netherlands Antilles                          English              No
+Norway                                        English              No
+Puerto Rico                                   English              No
+Trinidad and Tobago                           English              No
+
+Total countries found: 60
+admin@Admins-MacBook-Pro Exercise_8 % 
+
+
+Output: 
